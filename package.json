@@ -18,6 +18,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "test": "vitest",
+    "test:run": "vitest run",
     "prepublishOnly": "npm run build",
     "prettier:format": "prettier --write \"**/*.{js,ts,jsx,tsx,cjs,cts,mjs,mts,vue}\"",
     "prettier:check": "prettier --check \"**/*.{js,ts,jsx,tsx,cjs,cts,mjs,mts,vue}\""
@@ -35,6 +37,9 @@
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.0.0",
+    "@vue/test-utils": "^2.4.0",
+    "jsdom": "^23.0.0",
+    "vitest": "^1.0.0",
     "vite": "^5.0.0",
     "vue": "^3.4.0"
   },
