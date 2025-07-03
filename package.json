@@ -1,0 +1,44 @@
+{
+  "name": "vue-component-debug",
+  "version": "0.1.0",
+  "description": "A Vue 3 component library",
+  "type": "module",
+  "main": "./dist/vue-component-debug.umd.cjs",
+  "module": "./dist/vue-component-debug.js",
+  "exports": {
+    ".": {
+      "import": "./dist/vue-component-debug.js",
+      "require": "./dist/vue-component-debug.umd.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "prepublishOnly": "npm run build",
+    "prettier:format": "prettier --write \"**/*.{js,ts,jsx,tsx,cjs,cts,mjs,mts,vue}\"",
+    "prettier:check": "prettier --check \"**/*.{js,ts,jsx,tsx,cjs,cts,mjs,mts,vue}\""
+  },
+  "keywords": [
+    "vue",
+    "vue3",
+    "component",
+    "library"
+  ],
+  "author": "",
+  "license": "MIT",
+  "peerDependencies": {
+    "vue": "^3.0.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.0.0",
+    "vite": "^5.0.0",
+    "vue": "^3.4.0"
+  },
+  "dependencies": {
+    "prettier": "^3.6.2"
+  }
+}
