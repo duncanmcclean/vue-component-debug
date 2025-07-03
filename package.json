@@ -20,7 +20,9 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "prettier:format": "prettier --write \"**/*.{js,ts,jsx,tsx,cjs,cts,mjs,mts,vue}\"",
+    "prettier:check": "prettier --check \"**/*.{js,ts,jsx,tsx,cjs,cts,mjs,mts,vue}\""
   },
   "keywords": [
     "vue",

@@ -1,229 +1,232 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount } from '@vue/test-utils'
-import { createDebugMixin } from '../src/mixins/debugMixin.js'
+import { createComponentDebugMixin } from '../src/mixins/componentDebug.js'
 
-// Mock console methods
-const mockConsole = {
-  log: vi.fn(),
-  info: vi.fn(),
-  warn: vi.fn(),
-  error: vi.fn()
-}
+describe('createComponentDebugMixin', () => {
+  let originalEnv
 
-describe('createDebugMixin', () => {
   beforeEach(() => {
-    // Mock console methods
-    vi.spyOn(console, 'log').mockImplementation(mockConsole.log)
-    vi.spyOn(console, 'info').mockImplementation(mockConsole.info)
-    vi.spyOn(console, 'warn').mockImplementation(mockConsole.warn)
-    vi.spyOn(console, 'error').mockImplementation(mockConsole.error)
+    originalEnv = process.env.NODE_ENV
   })
 
   afterEach(() => {
-    vi.restoreAllMocks()
-    mockConsole.log.mockClear()
-    mockConsole.info.mockClear()
-    mockConsole.warn.mockClear()
-    mockConsole.error.mockClear()
+    process.env.NODE_ENV = originalEnv
   })
 
-  it('creates a mixin with default options', () => {
-    const mixin = createDebugMixin()
+  it('creates a mixin with mounted and beforeUnmount hooks', () => {
+    const mixin = createComponentDebugMixin()
     
-    expect(mixin).toHaveProperty('data')
-    expect(mixin).toHaveProperty('methods')
-    expect(mixin).toHaveProperty('created')
     expect(mixin).toHaveProperty('mounted')
     expect(mixin).toHaveProperty('beforeUnmount')
+    expect(typeof mixin.mounted).toBe('function')
+    expect(typeof mixin.beforeUnmount).toBe('function')
   })
 
-  it('creates a mixin with custom options', () => {
-    const options = {
-      enabled: true,
-      logLevel: 'info',
-      prefix: '[Custom Debug]'
-    }
+  it('adds HTML comments around component in development mode', () => {
+    process.env.NODE_ENV = 'development'
     
-    const mixin = createDebugMixin(options)
-    const data = mixin.data()
+    const TestComponent = {
+      name: 'TestComponent',
+      __file: 'src/components/TestComponent.vue',
+      mixins: [createComponentDebugMixin()],
+      template: '<div>Test Content</div>'
+    }
+
+    const wrapper = mount(TestComponent, {
+      attachTo: document.body
+    })
+
+    const element = wrapper.element
+    const parent = element.parentNode
+
+    // Check for start comment
+    const prevSibling = element.previousSibling
+    expect(prevSibling).toBeTruthy()
+    expect(prevSibling.nodeType).toBe(Node.COMMENT_NODE)
+    expect(prevSibling.nodeValue).toBe(' Start component: src/components/TestComponent.vue ')
+
+    // Check for end comment
+    const nextSibling = element.nextSibling
+    expect(nextSibling).toBeTruthy()
+    expect(nextSibling.nodeType).toBe(Node.COMMENT_NODE)
+    expect(nextSibling.nodeValue).toBe(' End component: src/components/TestComponent.vue ')
+
+    wrapper.unmount()
+  })
+
+  it('uses component name when __file is not available', () => {
+    process.env.NODE_ENV = 'development'
     
-    expect(data.$debugEnabled).toBe(true)
-    expect(data.$debugPrefix).toBe('[Custom Debug]')
+    const TestComponent = {
+      __name: 'MyComponent',
+      mixins: [createComponentDebugMixin()],
+      template: '<div>Test Content</div>'
+    }
+
+    const wrapper = mount(TestComponent, {
+      attachTo: document.body
+    })
+
+    const element = wrapper.element
+    const prevSibling = element.previousSibling
+
+    expect(prevSibling.nodeValue).toBe(' Start component: MyComponent ')
+
+    wrapper.unmount()
   })
 
-  it('provides debug methods to component', () => {
+  it('uses "Anonymous" when no component identifier is available', () => {
+    process.env.NODE_ENV = 'development'
+    
+    const TestComponent = {
+      mixins: [createComponentDebugMixin()],
+      template: '<div>Test Content</div>'
+    }
+
+    const wrapper = mount(TestComponent, {
+      attachTo: document.body
+    })
+
+    const element = wrapper.element
+    const prevSibling = element.previousSibling
+
+    expect(prevSibling.nodeValue).toBe(' Start component: Anonymous ')
+
+    wrapper.unmount()
+  })
+
+  it('does not add comments in production mode', () => {
+    process.env.NODE_ENV = 'production'
+    
     const TestComponent = {
       name: 'TestComponent',
-      mixins: [createDebugMixin({ enabled: true })],
-      template: '<div>Test</div>'
+      __file: 'src/components/TestComponent.vue',
+      mixins: [createComponentDebugMixin()],
+      template: '<div>Test Content</div>'
     }
 
-    const wrapper = mount(TestComponent)
-    const vm = wrapper.vm
+    const wrapper = mount(TestComponent, {
+      attachTo: document.body
+    })
 
-    expect(vm.$debug).toBeDefined()
-    expect(vm.$debugInfo).toBeDefined()
-    expect(vm.$debugWarn).toBeDefined()
-    expect(vm.$debugError).toBeDefined()
+    const element = wrapper.element
+
+    // Should not have comment siblings in production
+    expect(element.previousSibling).toBeNull()
+    expect(element.nextSibling).toBeNull()
+
+    wrapper.unmount()
   })
 
-  it('logs debug messages when enabled', () => {
+  it('cleans up comments when component is unmounted', () => {
+    process.env.NODE_ENV = 'development'
+    
     const TestComponent = {
       name: 'TestComponent',
-      mixins: [createDebugMixin({ enabled: true, logLevel: 'debug' })],
-      template: '<div>Test</div>',
-      mounted() {
-        this.$debug('Test debug message', { data: 'test' })
-      }
+      __file: 'src/components/TestComponent.vue',
+      mixins: [createComponentDebugMixin()],
+      template: '<div>Test Content</div>'
     }
 
-    mount(TestComponent)
+    const wrapper = mount(TestComponent, {
+      attachTo: document.body
+    })
 
-    expect(mockConsole.log).toHaveBeenCalledWith(
-      '[Vue Debug] [TestComponent]',
-      'Test debug message',
-      { data: 'test' }
-    )
-  })
+    const element = wrapper.element
+    const parent = element.parentNode
 
-  it('does not log when disabled', () => {
-    const TestComponent = {
-      name: 'TestComponent',
-      mixins: [createDebugMixin({ enabled: false })],
-      template: '<div>Test</div>',
-      mounted() {
-        this.$debug('This should not log')
-      }
-    }
+    // Verify comments exist
+    expect(element.previousSibling?.nodeType).toBe(Node.COMMENT_NODE)
+    expect(element.nextSibling?.nodeType).toBe(Node.COMMENT_NODE)
 
-    mount(TestComponent)
+    // Store references to comments
+    const startComment = element.previousSibling
+    const endComment = element.nextSibling
 
-    expect(mockConsole.log).not.toHaveBeenCalled()
-  })
-
-  it('respects log level filtering', () => {
-    const TestComponent = {
-      name: 'TestComponent',
-      mixins: [createDebugMixin({ enabled: true, logLevel: 'warn' })],
-      template: '<div>Test</div>',
-      mounted() {
-        this.$debug('Debug message') // Should not log
-        this.$debugInfo('Info message') // Should not log
-        this.$debugWarn('Warn message') // Should log
-        this.$debugError('Error message') // Should log
-      }
-    }
-
-    mount(TestComponent)
-
-    expect(mockConsole.log).not.toHaveBeenCalled()
-    expect(mockConsole.info).not.toHaveBeenCalled()
-    expect(mockConsole.warn).toHaveBeenCalledWith(
-      '[Vue Debug] [TestComponent]',
-      'Warn message'
-    )
-    expect(mockConsole.error).toHaveBeenCalledWith(
-      '[Vue Debug] [TestComponent]',
-      'Error message'
-    )
-  })
-
-  it('uses custom prefix in log messages', () => {
-    const TestComponent = {
-      name: 'TestComponent',
-      mixins: [createDebugMixin({ 
-        enabled: true, 
-        prefix: '[Custom Prefix]' 
-      })],
-      template: '<div>Test</div>',
-      mounted() {
-        this.$debug('Test message')
-      }
-    }
-
-    mount(TestComponent)
-
-    expect(mockConsole.log).toHaveBeenCalledWith(
-      '[Custom Prefix] [TestComponent]',
-      'Test message'
-    )
-  })
-
-  it('handles components without names', () => {
-    const TestComponent = {
-      // No name property
-      mixins: [createDebugMixin({ enabled: true })],
-      template: '<div>Test</div>',
-      mounted() {
-        this.$debug('Test message')
-      }
-    }
-
-    mount(TestComponent)
-
-    expect(mockConsole.log).toHaveBeenCalledWith(
-      '[Vue Debug] [Component]',
-      'Test message'
-    )
-  })
-
-  it('logs lifecycle events automatically', () => {
-    const TestComponent = {
-      name: 'TestComponent',
-      mixins: [createDebugMixin({ enabled: true })],
-      template: '<div>Test</div>'
-    }
-
-    const wrapper = mount(TestComponent)
-
-    // Check created lifecycle log
-    expect(mockConsole.log).toHaveBeenCalledWith(
-      '[Vue Debug] [TestComponent]',
-      'Component created',
-      expect.objectContaining({
-        name: 'TestComponent'
-      })
-    )
-
-    // Check mounted lifecycle log
-    expect(mockConsole.log).toHaveBeenCalledWith(
-      '[Vue Debug] [TestComponent]',
-      'Component mounted',
-      expect.objectContaining({
-        element: expect.any(Object)
-      })
-    )
-
-    // Test beforeUnmount
+    // Unmount component
     wrapper.unmount()
 
-    expect(mockConsole.log).toHaveBeenCalledWith(
-      '[Vue Debug] [TestComponent]',
-      'Component before unmount'
-    )
+    // Verify comments are removed from DOM
+    expect(parent.contains(startComment)).toBe(false)
+    expect(parent.contains(endComment)).toBe(false)
   })
 
-  it('works with different log levels', () => {
-    const levels = ['debug', 'info', 'warn', 'error']
+  it('handles multiple components with different names', () => {
+    process.env.NODE_ENV = 'development'
     
-    levels.forEach(level => {
-      const TestComponent = {
-        name: 'TestComponent',
-        mixins: [createDebugMixin({ enabled: true, logLevel: level })],
-        template: '<div>Test</div>',
-        mounted() {
-          this[`$${level}`](`${level} message`)
-        }
-      }
+    const Component1 = {
+      __file: 'src/components/Component1.vue',
+      mixins: [createComponentDebugMixin()],
+      template: '<div>Component 1</div>'
+    }
 
-      mount(TestComponent)
+    const Component2 = {
+      __file: 'src/components/Component2.vue',
+      mixins: [createComponentDebugMixin()],
+      template: '<div>Component 2</div>'
+    }
 
-      expect(mockConsole[level]).toHaveBeenCalledWith(
-        '[Vue Debug] [TestComponent]',
-        `${level} message`
-      )
+    const wrapper1 = mount(Component1, { attachTo: document.body })
+    const wrapper2 = mount(Component2, { attachTo: document.body })
 
-      mockConsole[level].mockClear()
+    expect(wrapper1.element.previousSibling.nodeValue).toBe(' Start component: src/components/Component1.vue ')
+    expect(wrapper2.element.previousSibling.nodeValue).toBe(' Start component: src/components/Component2.vue ')
+
+    wrapper1.unmount()
+    wrapper2.unmount()
+  })
+
+  it('handles components without parent nodes gracefully', () => {
+    process.env.NODE_ENV = 'development'
+    
+    const TestComponent = {
+      __file: 'src/components/TestComponent.vue',
+      mixins: [createComponentDebugMixin()],
+      template: '<div>Test Content</div>'
+    }
+
+    // Mount without attaching to document
+    const wrapper = mount(TestComponent)
+
+    // Should not throw errors when parent is null
+    expect(() => {
+      wrapper.unmount()
+    }).not.toThrow()
+  })
+
+  it('only removes matching comments during cleanup', () => {
+    process.env.NODE_ENV = 'development'
+    
+    const TestComponent = {
+      __file: 'src/components/TestComponent.vue',
+      mixins: [createComponentDebugMixin()],
+      template: '<div>Test Content</div>'
+    }
+
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+
+    // Add some unrelated comments
+    const unrelatedComment1 = document.createComment(' Some other comment ')
+    const unrelatedComment2 = document.createComment(' Another comment ')
+    container.appendChild(unrelatedComment1)
+    container.appendChild(unrelatedComment2)
+
+    const wrapper = mount(TestComponent, {
+      attachTo: container
     })
+
+    // Verify our component comments exist
+    const element = wrapper.element
+    expect(element.previousSibling.nodeValue).toBe(' Start component: src/components/TestComponent.vue ')
+    expect(element.nextSibling.nodeValue).toBe(' End component: src/components/TestComponent.vue ')
+
+    wrapper.unmount()
+
+    // Unrelated comments should still exist
+    expect(container.contains(unrelatedComment1)).toBe(true)
+    expect(container.contains(unrelatedComment2)).toBe(true)
+
+    document.body.removeChild(container)
   })
 })

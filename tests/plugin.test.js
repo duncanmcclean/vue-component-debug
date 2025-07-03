@@ -3,32 +3,18 @@ import { createApp } from 'vue'
 import { mount } from '@vue/test-utils'
 import VueComponentDebug from '../src/index.js'
 
-// Mock console methods
-const mockConsole = {
-  log: vi.fn(),
-  info: vi.fn(),
-  warn: vi.fn(),
-  error: vi.fn()
-}
-
 describe('VueComponentDebug Plugin', () => {
+  let originalEnv
+
   beforeEach(() => {
-    // Mock console methods
-    vi.spyOn(console, 'log').mockImplementation(mockConsole.log)
-    vi.spyOn(console, 'info').mockImplementation(mockConsole.info)
-    vi.spyOn(console, 'warn').mockImplementation(mockConsole.warn)
-    vi.spyOn(console, 'error').mockImplementation(mockConsole.error)
+    originalEnv = process.env.NODE_ENV
   })
 
   afterEach(() => {
-    vi.restoreAllMocks()
-    mockConsole.log.mockClear()
-    mockConsole.info.mockClear()
-    mockConsole.warn.mockClear()
-    mockConsole.error.mockClear()
+    process.env.NODE_ENV = originalEnv
   })
 
-  it('installs plugin with default options', () => {
+  it('installs plugin and adds mixin to app', () => {
     const app = createApp({})
     const mockMixin = vi.fn()
     app.mixin = mockMixin
@@ -37,129 +23,167 @@ describe('VueComponentDebug Plugin', () => {
 
     expect(mockMixin).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.any(Function),
-        methods: expect.any(Object),
-        created: expect.any(Function),
         mounted: expect.any(Function),
         beforeUnmount: expect.any(Function)
       })
     )
   })
 
-  it('installs plugin with custom options', () => {
-    const app = createApp({})
-    const mockMixin = vi.fn()
-    app.mixin = mockMixin
-
-    const options = {
-      enabled: true,
-      logLevel: 'info',
-      prefix: '[Custom]'
-    }
-
-    VueComponentDebug.install(app, options)
-
-    expect(mockMixin).toHaveBeenCalled()
-    
-    // Test that the mixin was created with the right options
-    const mixinArg = mockMixin.mock.calls[0][0]
-    const data = mixinArg.data()
-    expect(data.$debugEnabled).toBe(true)
-    expect(data.$debugPrefix).toBe('[Custom]')
-  })
-
-  it('adds debug methods to all components when installed globally', () => {
-    const TestComponent = {
-      name: 'TestComponent',
-      template: '<div>Test</div>',
-      mounted() {
-        this.$debug('Global mixin test')
-      }
-    }
-
-    // Mount with global plugin
-    const wrapper = mount(TestComponent, {
-      global: {
-        plugins: [[VueComponentDebug, { enabled: true }]]
-      }
-    })
-
-    const vm = wrapper.vm
-
-    expect(vm.$debug).toBeDefined()
-    expect(vm.$debugInfo).toBeDefined()
-    expect(vm.$debugWarn).toBeDefined()
-    expect(vm.$debugError).toBeDefined()
-
-    expect(mockConsole.log).toHaveBeenCalledWith(
-      '[Vue Debug] [TestComponent]',
-      'Global mixin test'
-    )
-  })
-
-  it('works with multiple components', () => {
-    const Component1 = {
-      name: 'Component1',
-      template: '<div>Component 1</div>',
-      mounted() {
-        this.$debug('Component 1 mounted')
-      }
-    }
-
-    const Component2 = {
-      name: 'Component2',
-      template: '<div>Component 2</div>',
-      mounted() {
-        this.$debug('Component 2 mounted')
-      }
-    }
-
-    mount(Component1, {
-      global: {
-        plugins: [[VueComponentDebug, { enabled: true }]]
-      }
-    })
-
-    mount(Component2, {
-      global: {
-        plugins: [[VueComponentDebug, { enabled: true }]]
-      }
-    })
-
-    expect(mockConsole.log).toHaveBeenCalledWith(
-      '[Vue Debug] [Component1]',
-      'Component 1 mounted'
-    )
-
-    expect(mockConsole.log).toHaveBeenCalledWith(
-      '[Vue Debug] [Component2]',
-      'Component 2 mounted'
-    )
-  })
-
-  it('respects environment-based default enabling', () => {
-    const originalEnv = process.env.NODE_ENV
-    
-    // Test development mode (should be enabled by default)
+  it('adds debug comments to all components when installed globally in development', () => {
     process.env.NODE_ENV = 'development'
     
     const TestComponent = {
       name: 'TestComponent',
-      template: '<div>Test</div>',
-      mounted() {
-        this.$debug('Development mode test')
-      }
+      template: '<div>Test</div>'
     }
 
-    mount(TestComponent, {
+    // Mount with global plugin
+    const wrapper = mount(TestComponent, {
+      attachTo: document.body,
       global: {
-        plugins: [VueComponentDebug] // No explicit options
+        plugins: [VueComponentDebug]
       }
     })
 
-    expect(mockConsole.log).toHaveBeenCalled()
+    const element = wrapper.element
 
-    // Restore original environment
-    process.env.NODE_ENV = originalEnv
+    // Check for debug comments (will use "Anonymous" since __file is not available in test)
+    expect(element.previousSibling?.nodeType).toBe(Node.COMMENT_NODE)
+    expect(element.previousSibling?.nodeValue).toBe(' Start component: Anonymous ')
+    expect(element.nextSibling?.nodeType).toBe(Node.COMMENT_NODE)
+    expect(element.nextSibling?.nodeValue).toBe(' End component: Anonymous ')
+
+    wrapper.unmount()
+  })
+
+  it('works with multiple components', () => {
+    process.env.NODE_ENV = 'development'
+    
+    const Component1 = {
+      template: '<div>Component 1</div>'
+    }
+
+    const Component2 = {
+      template: '<div>Component 2</div>'
+    }
+
+    const wrapper1 = mount(Component1, {
+      attachTo: document.body,
+      global: {
+        plugins: [VueComponentDebug]
+      }
+    })
+
+    const wrapper2 = mount(Component2, {
+      attachTo: document.body,
+      global: {
+        plugins: [VueComponentDebug]
+      }
+    })
+
+    // Both should use "Anonymous" since no component identifier is available in test environment
+    expect(wrapper1.element.previousSibling?.nodeValue).toBe(' Start component: Anonymous ')
+    expect(wrapper2.element.previousSibling?.nodeValue).toBe(' Start component: Anonymous ')
+
+    wrapper1.unmount()
+    wrapper2.unmount()
+  })
+
+  it('does not add comments in production mode', () => {
+    process.env.NODE_ENV = 'production'
+    
+    const TestComponent = {
+      name: 'TestComponent',
+      __file: 'src/components/TestComponent.vue',
+      template: '<div>Test</div>'
+    }
+
+    const wrapper = mount(TestComponent, {
+      attachTo: document.body,
+      global: {
+        plugins: [VueComponentDebug]
+      }
+    })
+
+    const element = wrapper.element
+
+    // Should not have comment siblings in production
+    expect(element.previousSibling).toBeNull()
+    expect(element.nextSibling).toBeNull()
+
+    wrapper.unmount()
+  })
+
+  it('handles app parameter gracefully when undefined', () => {
+    // Test that the plugin throws when app doesn't have mixin method
+    expect(() => {
+      VueComponentDebug.install()
+    }).toThrow('app.mixin is not a function')
+  })
+
+  it('cleans up comments when components are unmounted globally', () => {
+    process.env.NODE_ENV = 'development'
+    
+    const TestComponent = {
+      __file: 'src/components/TestComponent.vue',
+      template: '<div>Test Content</div>'
+    }
+
+    const wrapper = mount(TestComponent, {
+      attachTo: document.body,
+      global: {
+        plugins: [VueComponentDebug]
+      }
+    })
+
+    const element = wrapper.element
+    const parent = element.parentNode
+
+    // Store references to comments
+    const startComment = element.previousSibling
+    const endComment = element.nextSibling
+
+    // Verify comments exist
+    expect(startComment?.nodeType).toBe(Node.COMMENT_NODE)
+    expect(endComment?.nodeType).toBe(Node.COMMENT_NODE)
+
+    // Unmount component
+    wrapper.unmount()
+
+    // Verify comments are removed from DOM
+    expect(parent.contains(startComment)).toBe(false)
+    expect(parent.contains(endComment)).toBe(false)
+  })
+
+  it('works with nested components', () => {
+    process.env.NODE_ENV = 'development'
+    
+    const ChildComponent = {
+      template: '<span>Child</span>'
+    }
+
+    const ParentComponent = {
+      components: { ChildComponent },
+      template: '<div>Parent <ChildComponent /></div>'
+    }
+
+    const wrapper = mount(ParentComponent, {
+      attachTo: document.body,
+      global: {
+        plugins: [VueComponentDebug]
+      }
+    })
+
+    // Check parent component comments (will use "Anonymous" in test environment)
+    const parentElement = wrapper.element
+    expect(parentElement.previousSibling?.nodeValue).toBe(' Start component: Anonymous ')
+    expect(parentElement.nextSibling?.nodeValue).toBe(' End component: Anonymous ')
+
+    // Check child component comments
+    const childElement = wrapper.findComponent(ChildComponent).element
+    expect(childElement.previousSibling?.nodeValue).toBe(' Start component: Anonymous ')
+    expect(childElement.nextSibling?.nodeValue).toBe(' End component: Anonymous ')
+
+    wrapper.unmount()
   })
 })
