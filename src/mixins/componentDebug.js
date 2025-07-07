@@ -1,9 +1,12 @@
 export function createComponentDebugMixin(options = {}) {
     const { enabled = process.env.NODE_ENV === 'development' } = options;
 
+    // Handle string values from environment variables
+    const isEnabled = typeof enabled === 'string' ? enabled.toLowerCase() === 'true' : Boolean(enabled);
+
     return {
         mounted() {
-            if (!enabled) {
+            if (!isEnabled) {
                 return;
             }
 
@@ -16,7 +19,7 @@ export function createComponentDebugMixin(options = {}) {
             this.$el.parentNode?.insertBefore(endComment, this.$el.nextSibling);
         },
         beforeUnmount() {
-            if (!enabled) {
+            if (!isEnabled) {
                 return;
             }
 

@@ -234,4 +234,52 @@ describe('VueComponentDebug Plugin', () => {
 
         wrapper.unmount();
     });
+
+    it('handles string "false" from environment variables', () => {
+        process.env.NODE_ENV = 'development';
+
+        const TestComponent = {
+            name: 'TestComponent',
+            template: '<div>Test</div>',
+        };
+
+        const wrapper = mount(TestComponent, {
+            attachTo: document.body,
+            global: {
+                plugins: [[VueComponentDebug, { enabled: 'false' }]],
+            },
+        });
+
+        const element = wrapper.element;
+
+        // Should not have comments when disabled via string "false"
+        expect(element.previousSibling).toBeNull();
+        expect(element.nextSibling).toBeNull();
+
+        wrapper.unmount();
+    });
+
+    it('handles string "true" from environment variables', () => {
+        process.env.NODE_ENV = 'production';
+
+        const TestComponent = {
+            name: 'TestComponent',
+            template: '<div>Test</div>',
+        };
+
+        const wrapper = mount(TestComponent, {
+            attachTo: document.body,
+            global: {
+                plugins: [[VueComponentDebug, { enabled: 'true' }]],
+            },
+        });
+
+        const element = wrapper.element;
+
+        // Should have comments when enabled via string "true"
+        expect(element.previousSibling?.nodeType).toBe(Node.COMMENT_NODE);
+        expect(element.nextSibling?.nodeType).toBe(Node.COMMENT_NODE);
+
+        wrapper.unmount();
+    });
 });

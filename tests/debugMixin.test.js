@@ -299,4 +299,50 @@ describe('createComponentDebugMixin', () => {
 
         wrapper.unmount();
     });
+
+    it('handles string "false" as disabled', () => {
+        process.env.NODE_ENV = 'development';
+
+        const TestComponent = {
+            name: 'TestComponent',
+            __file: 'src/components/TestComponent.vue',
+            mixins: [createComponentDebugMixin({ enabled: 'false' })],
+            template: '<div>Test Content</div>',
+        };
+
+        const wrapper = mount(TestComponent, {
+            attachTo: document.body,
+        });
+
+        const element = wrapper.element;
+
+        // Should not have comment siblings when disabled via string "false"
+        expect(element.previousSibling).toBeNull();
+        expect(element.nextSibling).toBeNull();
+
+        wrapper.unmount();
+    });
+
+    it('handles string "true" as enabled', () => {
+        process.env.NODE_ENV = 'production';
+
+        const TestComponent = {
+            name: 'TestComponent',
+            __file: 'src/components/TestComponent.vue',
+            mixins: [createComponentDebugMixin({ enabled: 'true' })],
+            template: '<div>Test Content</div>',
+        };
+
+        const wrapper = mount(TestComponent, {
+            attachTo: document.body,
+        });
+
+        const element = wrapper.element;
+
+        // Should have comments even in production when explicitly enabled via string "true"
+        expect(element.previousSibling?.nodeType).toBe(Node.COMMENT_NODE);
+        expect(element.nextSibling?.nodeType).toBe(Node.COMMENT_NODE);
+
+        wrapper.unmount();
+    });
 });
