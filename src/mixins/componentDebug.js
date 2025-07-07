@@ -1,7 +1,9 @@
-export function createComponentDebugMixin() {
+export function createComponentDebugMixin(options = {}) {
+    const { enabled = process.env.NODE_ENV === 'development' } = options;
+
     return {
         mounted() {
-            if (process.env.NODE_ENV !== 'development') {
+            if (!enabled) {
                 return;
             }
 
@@ -14,7 +16,7 @@ export function createComponentDebugMixin() {
             this.$el.parentNode?.insertBefore(endComment, this.$el.nextSibling);
         },
         beforeUnmount() {
-            if (process.env.NODE_ENV !== 'development') {
+            if (!enabled) {
                 return;
             }
 
