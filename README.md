@@ -12,11 +12,11 @@ You may have a Vue component which looks like this:
 
 ```vue
 <div>
-	My component file!
+    My component file!
 
-	<SubComponent>Click me!</SubComponent>
-
-	More stuff
+    <SubComponent>Click me!</SubComponent>
+        
+    More stuff
 </div>
 ```
 
