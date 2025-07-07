@@ -229,4 +229,74 @@ describe('createComponentDebugMixin', () => {
 
         document.body.removeChild(container);
     });
+
+    it('respects enabled option when set to false', () => {
+        process.env.NODE_ENV = 'development';
+
+        const TestComponent = {
+            name: 'TestComponent',
+            __file: 'src/components/TestComponent.vue',
+            mixins: [createComponentDebugMixin({ enabled: false })],
+            template: '<div>Test Content</div>',
+        };
+
+        const wrapper = mount(TestComponent, {
+            attachTo: document.body,
+        });
+
+        const element = wrapper.element;
+
+        // Should not have comment siblings when disabled
+        expect(element.previousSibling).toBeNull();
+        expect(element.nextSibling).toBeNull();
+
+        wrapper.unmount();
+    });
+
+    it('respects enabled option when set to true in production', () => {
+        process.env.NODE_ENV = 'production';
+
+        const TestComponent = {
+            name: 'TestComponent',
+            __file: 'src/components/TestComponent.vue',
+            mixins: [createComponentDebugMixin({ enabled: true })],
+            template: '<div>Test Content</div>',
+        };
+
+        const wrapper = mount(TestComponent, {
+            attachTo: document.body,
+        });
+
+        const element = wrapper.element;
+
+        // Should have comments even in production when explicitly enabled
+        expect(element.previousSibling?.nodeType).toBe(Node.COMMENT_NODE);
+        expect(element.nextSibling?.nodeType).toBe(Node.COMMENT_NODE);
+        expect(element.previousSibling.nodeValue).toBe(' Start component: src/components/TestComponent.vue ');
+
+        wrapper.unmount();
+    });
+
+    it('defaults to development mode behavior when no enabled option provided', () => {
+        process.env.NODE_ENV = 'development';
+
+        const TestComponent = {
+            name: 'TestComponent',
+            __file: 'src/components/TestComponent.vue',
+            mixins: [createComponentDebugMixin()],
+            template: '<div>Test Content</div>',
+        };
+
+        const wrapper = mount(TestComponent, {
+            attachTo: document.body,
+        });
+
+        const element = wrapper.element;
+
+        // Should have comments in development by default
+        expect(element.previousSibling?.nodeType).toBe(Node.COMMENT_NODE);
+        expect(element.nextSibling?.nodeType).toBe(Node.COMMENT_NODE);
+
+        wrapper.unmount();
+    });
 });

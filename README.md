@@ -26,7 +26,7 @@ It will be rendered like this:
 <!-- Start component: src/components/MyComponent.vue -->
 <div>
     My component file
-    
+
     <!-- Start component: src/components/SubComponent.vue -->
     <div>Sub component</div>
     <!-- End component: src/components/SubComponent.vue -->
@@ -51,18 +51,22 @@ npm install vue-component-debug --save-dev
 To enable it, add the `VueComponentDebug` plugin to your Vue application. This can be done in your main entry file (e.g., `main.js` or `main.ts`):
 
 ```javascript
-import { createApp } from 'vue'
-import VueComponentDebug from 'vue-component-debug'
-import App from './App.vue'
+import { createApp } from 'vue';
+import VueComponentDebug from 'vue-component-debug';
+import App from './App.vue';
 
-const app = createApp(App)
+const app = createApp(App);
 
-app.use(VueComponentDebug)
+app.use(VueComponentDebug);
 
-app.mount('#app')
+app.mount('#app');
 ```
 
-Comments will only be added in development mode.
+By default, comments will always be outputted while in development mode and removed in production mode. However, you're welcome to override this behavior by passing an `enabled` option to the plugin:
+
+```javascript
+app.use(VueComponentDebug, { enabled: false });
+```
 
 ## Development
 

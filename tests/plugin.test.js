@@ -186,4 +186,52 @@ describe('VueComponentDebug Plugin', () => {
 
         wrapper.unmount();
     });
+
+    it('accepts enabled option and passes it to mixin', () => {
+        process.env.NODE_ENV = 'development';
+
+        const TestComponent = {
+            name: 'TestComponent',
+            template: '<div>Test</div>',
+        };
+
+        const wrapper = mount(TestComponent, {
+            attachTo: document.body,
+            global: {
+                plugins: [[VueComponentDebug, { enabled: false }]],
+            },
+        });
+
+        const element = wrapper.element;
+
+        // Should not have comments when disabled via options
+        expect(element.previousSibling).toBeNull();
+        expect(element.nextSibling).toBeNull();
+
+        wrapper.unmount();
+    });
+
+    it('can force enable in production mode via options', () => {
+        process.env.NODE_ENV = 'production';
+
+        const TestComponent = {
+            name: 'TestComponent',
+            template: '<div>Test</div>',
+        };
+
+        const wrapper = mount(TestComponent, {
+            attachTo: document.body,
+            global: {
+                plugins: [[VueComponentDebug, { enabled: true }]],
+            },
+        });
+
+        const element = wrapper.element;
+
+        // Should have comments even in production when explicitly enabled
+        expect(element.previousSibling?.nodeType).toBe(Node.COMMENT_NODE);
+        expect(element.nextSibling?.nodeType).toBe(Node.COMMENT_NODE);
+
+        wrapper.unmount();
+    });
 });
