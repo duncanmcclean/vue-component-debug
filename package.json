@@ -1,6 +1,6 @@
 {
     "name": "vue-component-debug",
-    "version": "0.2.0",
+    "version": "0.1.0",
     "description": "A Vue 3 plugin that adds HTML comments around components for easier debugging",
     "type": "module",
     "main": "./dist/vue-component-debug.umd.cjs",
